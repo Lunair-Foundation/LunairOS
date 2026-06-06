@@ -1,5 +1,7 @@
 # LunairOS
 
+### [Português](README.md) • English
+
 LunairOS is an independent Linux distribution focused on bringing a modern take on skeuomorphism, while maintaining stability and incorporating elements of the BSD philosophy. 
 
 ## Current release
