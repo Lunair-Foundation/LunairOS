@@ -1,5 +1,7 @@
 # LunairOS
 
+### Português • [English](README.en.md)
+
 LunairOS é uma distribuição Linux independente focada em trazer o esqueumorfismo de forma moderna, mantendo estabilidade e incorporando parte da filosofia BSD.
 
 ## Atual lançamento
