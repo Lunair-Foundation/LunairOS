@@ -1,97 +1,53 @@
+
 .RECIPEPREFIX := >
 
 TOP := $(CURDIR)
 
-PROJECT ?= LunairOS
-VERSION ?= 0.1.1
-CODENAME ?= Turmoil
-KERNEL_VERSION ?= 6.9.12
+PROJECT := LunairOS
+VERSION := 0.2.0
 
-BUILD ?= $(TOP)/build
-JOBS ?= $(shell nproc 2>/dev/null || echo 1)
+BUILD := $(TOP)/build
+ROOTFS := $(BUILD)/rootfs
 
-USERLAND_DEST ?= $(BUILD)/userland
+.PHONY: all rootfs base-files clean distclean rebuild-rootfs
 
-BUSYBOX ?= $(shell if [ -x "$(BUILD)/busybox/busybox" ]; then printf "%s" "$(BUILD)/busybox/busybox"; elif [ -x "$(TOP)/result/bin/busybox" ]; then printf "%s" "$(TOP)/result/bin/busybox"; elif [ -x /bin/busybox ]; then printf "%s" "/bin/busybox"; else printf "%s" "busybox"; fi)
+all: base-files
 
-KERNEL_IMAGE ?= $(BUILD)/kernel/bzImage
-INITRAMFS_IMAGE ?= $(BUILD)/initramfs.cpio.gz
-ISO_IMAGE ?= $(BUILD)/$(PROJECT)-$(CODENAME)-$(VERSION).iso
+rootfs:
+>mkdir -p "$(ROOTFS)/bin"
+>mkdir -p "$(ROOTFS)/dev"
+>mkdir -p "$(ROOTFS)/etc"
+>mkdir -p "$(ROOTFS)/home"
+>mkdir -p "$(ROOTFS)/proc"
+>mkdir -p "$(ROOTFS)/root"
+>mkdir -p "$(ROOTFS)/run"
+>mkdir -p "$(ROOTFS)/sys"
+>mkdir -p "$(ROOTFS)/tmp"
+>mkdir -p "$(ROOTFS)/usr"
+>mkdir -p "$(ROOTFS)/var"
 
-QEMU ?= qemu-system-x86_64
-QEMU_FLAGS ?= -machine pc -cpu qemu64 -m 512M -serial stdio -no-reboot
+base-files: rootfs
+>echo 'root:x:0:0:root:/root:/bin/sh' > "$(ROOTFS)/etc/passwd"
+>echo 'root:x:0:' > "$(ROOTFS)/etc/group"
+>echo 'lunairos' > "$(ROOTFS)/etc/hostname"
 
-export
+>printf '%s\n' \
+>'NAME="LunairOS"' \
+>'PRETTY_NAME="LunairOS $(VERSION)"' \
+>'ID=lunairos' \
+>'VERSION="$(VERSION)"' \
+>'VERSION_ID="$(VERSION)"' \
+>'HOME_URL="https://github.com/Lunair-Foundation/LunairOS"' \
+>'SUPPORT_URL="https://github.com/Lunair-Foundation/LunairOS/issues"' \
+>'BUG_REPORT_URL="https://github.com/Lunair-Foundation/LunairOS/issues"' \
+> > "$(ROOTFS)/etc/os-release"
 
-.PHONY: all world buildkernel buildbusybox builduserland buildworld release kernel initramfs iso run qemu check install-deps-debian clean cleanuserland cleankernel cleaninitramfs cleaniso distclean help
+rebuild-rootfs:
+>rm -rf "$(ROOTFS)"
+>$(MAKE) base-files
 
-all: release
-
-world: clean release
-
-release: check iso
-
-buildkernel: kernel
-
-buildbusybox:
->$(MAKE) -C busybox TOP="$(TOP)" all
-
-builduserland:
->$(MAKE) -C userland TOP="$(TOP)" DESTDIR="$(USERLAND_DEST)" all install
-
-buildworld: initramfs
-
-kernel:
->$(MAKE) -C kernel TOP="$(TOP)" all
-
-initramfs: builduserland
->$(MAKE) -C initramfs TOP="$(TOP)" USERLAND_DEST="$(USERLAND_DEST)" BUSYBOX="$(BUSYBOX)" all
-
-iso: kernel initramfs
->$(MAKE) -C iso TOP="$(TOP)" all
-
-run qemu: release
->$(QEMU) $(QEMU_FLAGS) -cdrom "$(ISO_IMAGE)"
-
-check:
->@missing=""; \
->for cmd in make gcc wget tar xz bc bison flex cpio gzip grub-mkrescue xorriso mtools file; do \
->    command -v $$cmd >/dev/null 2>&1 || missing="$$missing $$cmd"; \
->done; \
->if [ -n "$$missing" ]; then \
->    echo "[!] Faltando ferramentas:$$missing"; \
->    echo "    Rode: make install-deps-debian"; \
->    exit 1; \
->fi; \
->echo "[✓] Ferramentas principais encontradas"
-
-install-deps-debian:
->sudo apt update
->sudo apt install -y build-essential wget xz-utils bc bison flex libssl-dev libelf-dev dwarves cpio gzip busybox-static xorriso mtools grub-common grub-pc-bin grub-efi-amd64-bin qemu-system-x86 file musl-tools
-
-cleanuserland:
->$(MAKE) -C userland TOP="$(TOP)" DESTDIR="$(USERLAND_DEST)" clean || true
->rm -rf "$(USERLAND_DEST)"
-
-clean: cleanuserland cleaninitramfs cleaniso
-
-cleankernel:
->$(MAKE) -C kernel TOP="$(TOP)" clean
-
-cleaninitramfs:
->$(MAKE) -C initramfs TOP="$(TOP)" clean
-
-cleaniso:
->$(MAKE) -C iso TOP="$(TOP)" clean
+clean:
+>rm -rf "$(ROOTFS)"
 
 distclean:
 >rm -rf "$(BUILD)"
-
-help:
->@echo "Comandos:"
->@echo "  make builduserland  - compila programas do userland"
->@echo "  make buildworld     - monta initramfs"
->@echo "  make release        - compila kernel/initramfs e monta ISO"
->@echo "  make run            - testa no QEMU"
->@echo "  make clean          - limpa userland/initramfs/iso"
->@echo "  make distclean      - apaga build/"
